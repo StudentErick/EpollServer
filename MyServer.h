@@ -18,6 +18,12 @@ public:
 
     int setnonblocking(int fd);
 
+    inline void setTimer(unsigned long n);
+    // 每隔一段时间写一次日志
+    static void writeLog(int n);
+
+    static unsigned long m_alarmSeconds;  // 定时器，间隔一定时间记录一次日志
+
 private:
     std::shared_ptr<ThreadPool> threadPool;  // 测试用，暂时8个线程
 };

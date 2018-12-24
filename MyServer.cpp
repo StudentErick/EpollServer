@@ -7,13 +7,19 @@
 #include <fstream>
 #include <iostream>
 #include <ctime>
+#include <signal.h>
 #include <fcntl.h>
+#include <stdlib.h>
+#include <zconf.h>
+
 #include "MyServer.h"
 
 MyServer::MyServer(int maxWaiter) :
         TcpServer(maxWaiter) {
     // 测试用的8个线程
     threadPool = std::make_shared<ThreadPool>(8);
+    m_alarmSeconds = 3600;  // 一个小时
+    signal(SIGALRM, writeLog);
 }
 
 void MyServer::newConnection() {
@@ -43,13 +49,7 @@ void MyServer::existConnection(int fd) {
     // 处理已经存在客户端的请求在子线程处理
     threadPool->enqueue([this, fd]() {  // lambda统一处理即可
 
-//        std::cout << "event num: " << m_epollEvents[fd].events << std::endl;
-//        std::cout << "EPOLLIN: " << EPOLLIN << std::endl;
-//        std::cout << "m_epollEvents[fd].events & EPOLLIN: " << (m_epollEvents[fd].events & EPOLLIN) << std::endl;
-
         if (this->m_epollEvents[fd].events & EPOLLIN) { // 数据
-
-//            std::cout << "come in\n";
 
             char buf[MAX_BUFFER];
             memset(buf, 0, MAX_BUFFER);
@@ -100,4 +100,27 @@ int MyServer::setnonblocking(int fd) {
     int new_option = old_option | O_NONBLOCK;
     fcntl(fd, F_SETFL, new_option);
     return old_option;
+}
+
+void MyServer::setTimer(unsigned long n) {
+    m_alarmSeconds = n;
+}
+
+void MyServer::writeLog(int n) {
+    const char *buf = "an hour log...\n";
+
+    std::ofstream stream;
+    time_t rawtime;
+    struct tm *timeinfo;
+    char buffer[80];
+    time(&rawtime);
+    timeinfo = localtime(&rawtime);
+    strftime(buffer, sizeof(buffer), "%d-%m-%Y %H:%M:%S", timeinfo);
+    std::string str(buffer);
+    stream.open(std::string("./") + str);
+    stream << buf;
+    stream.close();
+
+    alarm(m_alarmSeconds);  // 重新设置为1个小时
+
 }
